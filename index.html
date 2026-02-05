@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GBA Mail — Регистрация</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a0e17;
+      color: #e0e0ff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 40px 32px;
+      width: 100%;
+      max-width: 420px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 28px;
+      text-align: center;
+      color: #58a6ff;
+    }
+    .hint {
+      color: #8b949e;
+      text-align: center;
+      margin: 0 0 32px;
+      font-size: 15px;
+    }
+    .field {
+      margin-bottom: 24px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #c9d1d9;
+    }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 16px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #e6edf3;
+      box-sizing: border-box;
+    }
+    input:focus {
+      outline: none;
+      border-color: #58a6ff;
+      box-shadow: 0 0 0 3px rgba(88,166,255,.2);
+    }
+    .username-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .username-group input {
+      flex: 1;
+      min-width: 120px;
+    }
+    .at, .domain {
+      color: #8b949e;
+      font-size: 17px;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 500;
+      background: #238636;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background: #2ea043;
+    }
+    .info {
+      margin-top: 28px;
+      font-size: 13px;
+      color: #8b949e;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>GBA Mail</h1>
+  <div class="hint">Создайте почту за секунды</div>
+
+  <div class="field">
+    <label>Имя</label>
+    <input type="text" id="firstName" placeholder="Алибахш" autocomplete="off">
+  </div>
+
+  <div class="field">
+    <label>Желаемый адрес</label>
+    <div class="username-group">
+      <input type="text" id="username" placeholder="alibakhsh" autocomplete="off">
+      <span class="at">@</span>
+      <span class="domain">gba.com</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Пароль</label>
+    <input type="password" id="password" placeholder="Не менее 8 символов">
+  </div>
+
+  <button class="btn" onclick="register()">Создать почту</button>
+
+  <div class="info">
+    Это демонстрационная страница.<br>Ничего не сохраняется.
+  </div>
+</div>
+
+<script>
+function register() {
+  const first = document.getElementById('firstName').value.trim() || 'Пользователь';
+  let user = document.getElementById('username').value.trim();
+
+  if (!user) {
+    user = 'user' + Math.floor(Math.random() * 100000);
+  }
+
+  user = user.toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/^[._-]+|[._-]+$/, '');
+
+  if (!user) user = 'user' + Math.floor(Math.random() * 10000);
+
+  const email = user + '@gba.com';
+
+  alert(
+    'Аккаунт успешно создан!\n\n' +
+    'Почта: ' + email + '\n' +
+    'Имя:   ' + first + '\n\n' +
+    'Пароль: (тот, который вы ввели)\n\n' +
+    'Теперь вы можете войти на gba.com/mail\n(шутка, такой почты пока нет)'
+  );
+}
+</script>
+
+</body>
+</html>
