@@ -1,160 +1,144 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GBA Mail — Регистрация</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Чат-рулетка 5 мин</title>
   <style>
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #0a0e17;
-      color: #e0e0ff;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      box-sizing: border-box;
-    }
-    .card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 40px 32px;
-      width: 100%;
-      max-width: 420px;
-    }
-    h1 {
-      margin: 0 0 12px;
-      font-size: 28px;
-      text-align: center;
-      color: #58a6ff;
-    }
-    .hint {
-      color: #8b949e;
-      text-align: center;
-      margin: 0 0 32px;
-      font-size: 15px;
-    }
-    .field {
-      margin-bottom: 24px;
-    }
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 14px;
-      color: #c9d1d9;
-    }
-    input {
-      width: 100%;
-      padding: 12px 16px;
-      font-size: 16px;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      color: #e6edf3;
-      box-sizing: border-box;
-    }
-    input:focus {
-      outline: none;
-      border-color: #58a6ff;
-      box-shadow: 0 0 0 3px rgba(88,166,255,.2);
-    }
-    .username-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .username-group input {
-      flex: 1;
-      min-width: 120px;
-    }
-    .at, .domain {
-      color: #8b949e;
-      font-size: 17px;
-    }
-    .btn {
-      width: 100%;
-      padding: 14px;
-      font-size: 16px;
-      font-weight: 500;
-      background: #238636;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .btn:hover {
-      background: #2ea043;
-    }
-    .info {
-      margin-top: 28px;
-      font-size: 13px;
-      color: #8b949e;
-      text-align: center;
-    }
+    body { font-family: sans-serif; margin: 20px; background: #f0f0f0; text-align: center; }
+    #status { font-weight: bold; margin: 10px; color: #444; }
+    #chat { height: 320px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: white; margin: 10px auto; max-width: 500px; text-align: left; }
+    #input { width: 70%; padding: 10px; font-size: 16px; }
+    button { padding: 10px 18px; margin: 5px; font-size: 16px; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
 </head>
 <body>
 
-<div class="card">
-  <h1>GBA Mail</h1>
-  <div class="hint">Создайте почту за секунды</div>
+<h2>Чат-рулетка · 5 минут</h2>
+<div id="status">Нажми «Начать»</div>
+<div id="chat"></div>
+<input id="input" placeholder="Сообщение..." disabled>
+<button id="send" disabled>Отправить</button>
+<br>
+<button id="start">Начать</button>
+<button id="next" disabled>Следующий</button>
+<button id="stop" disabled>Стоп</button>
 
-  <div class="field">
-    <label>Имя</label>
-    <input type="text" id="firstName" placeholder="Алибахш" autocomplete="off">
-  </div>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+  import { getDatabase, ref, push, onValue, remove, set, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
-  <div class="field">
-    <label>Желаемый адрес</label>
-    <div class="username-group">
-      <input type="text" id="username" placeholder="alibakhsh" autocomplete="off">
-      <span class="at">@</span>
-      <span class="domain">gba.com</span>
-    </div>
-  </div>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWvsB0nsBWxQZLZ9ppIaeH4hZK_6DBeDw",
+    authDomain: "chatroullet-80ba8.firebaseapp.com",
+    databaseURL: "https://chatroullet-80ba8-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "chatroullet-80ba8",
+    storageBucket: "chatroullet-80ba8.firebasestorage.app",
+    messagingSenderId: "494898766457",
+    appId: "1:494898766457:web:356fddf6d48b8730052aa8",
+    measurementId: "G-SPB60G3NNQ"
+  };
 
-  <div class="field">
-    <label>Пароль</label>
-    <input type="password" id="password" placeholder="Не менее 8 символов">
-  </div>
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-  <button class="btn" onclick="register()">Создать почту</button>
+  const myId = localStorage.getItem('crId') || 'u-' + Math.random().toString(36).slice(2,10);
+  localStorage.setItem('crId', myId);
 
-  <div class="info">
-    Это демонстрационная страница.<br>Ничего не сохраняется.
-  </div>
-</div>
+  let roomId = null, timer = null;
 
-<script>
-function register() {
-  const first = document.getElementById('firstName').value.trim() || 'Пользователь';
-  let user = document.getElementById('username').value.trim();
+  const $ = id => document.getElementById(id);
+  const status = $('status'), chat = $('chat'), input = $('input'),
+        send = $('send'), start = $('start'), next = $('next'), stop = $('stop');
 
-  if (!user) {
-    user = 'user' + Math.floor(Math.random() * 100000);
-  }
+  const add = (text, mine) => {
+    const d = document.createElement('div');
+    d.textContent = text;
+    d.style.color = mine ? '#0066cc' : '#333';
+    d.style.margin = '4px 0';
+    chat.appendChild(d);
+    chat.scrollTop = chat.scrollHeight;
+  };
 
-  user = user.toLowerCase()
-    .replace(/[^a-z0-9._-]/g, '')
-    .replace(/^[._-]+|[._-]+$/, '');
+  const listen = () => onValue(ref(db, `rooms/${roomId}/msgs`), snap => {
+    chat.innerHTML = '';
+    snap.forEach(c => {
+      const m = c.val();
+      add(`${m.from === myId ? 'Я' : 'Он'}: ${m.text}`, m.from === myId);
+    });
+  });
 
-  if (!user) user = 'user' + Math.floor(Math.random() * 10000);
+  start.onclick = async () => {
+    status.textContent = 'Ожидание...';
+    start.disabled = next.disabled = stop.disabled = input.disabled = send.disabled = true;
 
-  const email = user + '@gba.com';
+    await set(ref(db, `waiting/${myId}`), serverTimestamp());
 
-  alert(
-    'Аккаунт успешно создан!\n\n' +
-    'Почта: ' + email + '\n' +
-    'Имя:   ' + first + '\n\n' +
-    'Пароль: (тот, который вы ввели)\n\n' +
-    'Теперь вы можете войти на gba.com/mail\n(шутка, такой почты пока нет)'
-  );
-}
+    onValue(ref(db, 'waiting'), async snap => {
+      if (roomId || !snap.exists()) return;
+      const ids = Object.keys(snap.val() || {});
+      if (ids.length < 2 || !ids.includes(myId)) return;
+
+      const p = ids.find(id => id !== myId);
+      roomId = [myId, p].sort().join('_');
+
+      await Promise.all([
+        remove(ref(db, `waiting/${myId}`)),
+        remove(ref(db, `waiting/${p}`)),
+        set(ref(db, `rooms/${roomId}`), { start: serverTimestamp(), msgs: [] })
+      ]);
+
+      status.textContent = 'Нашли! 5 мин.';
+      input.disabled = send.disabled = false;
+      next.disabled = stop.disabled = false;
+      listen();
+
+      let s = 300;
+      timer = setInterval(() => {
+        s--;
+        status.textContent = `Осталось \( {Math.floor(s/60)}: \){s%60|0 .toString().padStart(2,0)}`;
+        if (s <= 0) next.click();
+      }, 1000);
+    });
+  };
+
+  send.onclick = () => {
+    const t = input.value.trim();
+    if (t && roomId) {
+      push(ref(db, `rooms/${roomId}/msgs`), { from: myId, text: t, t: serverTimestamp() });
+      input.value = '';
+    }
+  };
+
+  input.onkeypress = e => e.key === 'Enter' && send.click();
+
+  next.onclick = async () => {
+    clearInterval(timer);
+    if (roomId) await remove(ref(db, `rooms/${roomId}`));
+    roomId = null;
+    chat.innerHTML = '';
+    status.textContent = 'Ищем...';
+    input.disabled = send.disabled = next.disabled = true;
+    start.disabled = false;
+    start.click();
+  };
+
+  stop.onclick = async () => {
+    clearInterval(timer);
+    if (roomId) await remove(ref(db, `rooms/${roomId}`));
+    await remove(ref(db, `waiting/${myId}`));
+    roomId = null;
+    chat.innerHTML = '';
+    status.textContent = 'Завершено';
+    input.disabled = send.disabled = next.disabled = stop.disabled = true;
+    start.disabled = false;
+  };
+
+  window.onbeforeunload = () => {
+    if (roomId) remove(ref(db, `rooms/${roomId}`));
+    remove(ref(db, `waiting/${myId}`));
+  };
 </script>
-
 </body>
 </html>
