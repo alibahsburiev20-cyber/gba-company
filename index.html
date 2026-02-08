@@ -232,7 +232,7 @@
   const myId = localStorage.crId || (localStorage.crId = 'u-'+Math.random().toString(36).slice(2,11));
 
   let room = null, timer = null, partner = null, mode = 'chat';
-  let mediaRecorder = null, audioChunks = [];
+  let mediaRecorder = null, audioChunks = [], currentStream = null;
 
   const $ = s => document.getElementById(s);
   const els = {
@@ -283,53 +283,68 @@
   const cleanup = async () => {
     clearInterval(timer);
     if (room) await remove(ref(db, `rooms/${room}`));
+    if (currentStream) currentStream.getTracks().forEach(t => t.stop());
     room = partner = null;
     els.messages.innerHTML = '';
   };
 
-  // Запись голосового (макс 5 сек)
-  els.record.onclick = async () => {
-    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-        audioChunks = [];
+  // Голосовое как в Telegram — зажал/отпустил
+  els.record.onmousedown = els.record.ontouchstart = async e => {
+    e.preventDefault();
+    if (els.record.disabled) return;
 
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    try {
+      currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(currentStream, { mimeType: 'audio/webm' });
+      audioChunks = [];
 
-        mediaRecorder.onstop = async () => {
-          const blob = new Blob(audioChunks, { type: 'audio/webm' });
-          if (blob.size < 300) return; // слишком коротко
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
 
-          const path = `voice/\( {room}/ \){Date.now()}.webm`;
-          const storageRef = sRef(storage, path);
-          await uploadBytes(storageRef, blob);
-          const url = await getDownloadURL(storageRef);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        if (blob.size < 300) return;
 
-          push(ref(db, `rooms/${room}/msgs`), {
-            by: myId,
-            type: 'voice',
-            url,
-            ts: serverTimestamp()
-          });
+        const path = `voice/\( {room}/ \){Date.now()}.webm`;
+        const storageRef = sRef(storage, path);
+        await uploadBytes(storageRef, blob);
+        const url = await getDownloadURL(storageRef);
 
-          els.record.textContent = '🎤';
-        };
+        push(ref(db, `rooms/${room}/msgs`), {
+          by: myId,
+          type: 'voice',
+          url,
+          ts: serverTimestamp()
+        });
 
-        mediaRecorder.start();
-        els.record.textContent = '■';
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+      };
 
-        setTimeout(() => {
-          if (mediaRecorder.state === 'recording') mediaRecorder.stop();
-        }, 5000);
-      } catch (e) {
-        console.error('Микрофон недоступен', e);
-      }
-    } else {
-      mediaRecorder.stop();
-      els.record.textContent = '🎤';
+      mediaRecorder.start();
+      els.record.textContent = '■';
+      els.record.style.background = '#ef4444';
+    } catch (err) {
+      console.error('Микрофон недоступен', err);
     }
   };
+
+  els.record.onmouseup = els.record.ontouchend = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      els.record.textContent = '🎤';
+      els.record.style.background = '';
+    }
+  };
+
+  // Автостоп 5 сек
+  const autoStop = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      els.record.textContent = '🎤';
+      els.record.style.background = '';
+    }
+  };
+  setInterval(autoStop, 5000); // проверка каждые 5 сек
 
   els.start.onclick = async () => {
     if (await isBlocked()) {
