@@ -132,7 +132,8 @@
       padding: 12px 16px;
       border-top: 1px solid #2d2d44;
       display: flex;
-      gap: 10px;
+      gap: 8px;
+      align-items: center;
     }
     #msgInput { flex: 1; }
     button {
@@ -142,17 +143,19 @@
       font-weight: 600;
       cursor: pointer;
       transition: all .18s;
-      min-width: 80px;
+      min-width: 60px;
     }
     .btn-main   { background: var(--primary); color: white; }
     .btn-main:hover   { background: var(--primary-dark); }
     .btn-danger { background: var(--red); color: white; }
     button:disabled { opacity: 0.4; }
 
+    audio { width: 180px; margin: 4px 0; }
+
     @media (max-width: 480px) {
       .card { padding: 24px 16px; border-radius: 16px; }
-      .bottom-bar { padding: 10px 12px; gap: 8px; }
-      button { padding: 0 16px; font-size: 0.95rem; }
+      .bottom-bar { padding: 10px 12px; gap: 6px; }
+      button { padding: 0 14px; font-size: 0.95rem; }
     }
   </style>
 </head>
@@ -196,6 +199,7 @@
   <div class="bottom-bar">
     <input id="msgInput" placeholder="Сообщение…" disabled autocomplete="off"/>
     <button id="sendBtn" class="btn-main" disabled>→</button>
+    <button id="recordBtn" class="btn-main" disabled>🎤</button>
   </div>
 
   <div class="bottom-bar" style="justify-content:center;gap:12px;padding:10px 16px;">
@@ -208,6 +212,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
   import { getDatabase, ref, push, onValue, remove, set, serverTimestamp, get } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+  import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
 
   const config = {
     apiKey: "AIzaSyDWvsB0nsBWxQZLZ9ppIaeH4hZK_6DBeDw",
@@ -222,10 +227,12 @@
 
   const app = initializeApp(config);
   const db = getDatabase(app);
+  const storage = getStorage(app);
 
   const myId = localStorage.crId || (localStorage.crId = 'u-'+Math.random().toString(36).slice(2,11));
 
   let room = null, timer = null, partner = null, mode = 'chat';
+  let mediaRecorder = null, audioChunks = [];
 
   const $ = s => document.getElementById(s);
   const els = {
@@ -239,7 +246,8 @@
     start: $('startBtn'),
     next: $('nextBtn'),
     stop: $('stopBtn'),
-    report: $('reportBtn')
+    report: $('reportBtn'),
+    record: $('recordBtn')
   };
 
   document.querySelectorAll('[data-mode]').forEach(el => {
@@ -267,7 +275,7 @@
   const endChat = reason => {
     clearInterval(timer);
     els.status.textContent = reason || 'Чат завершён';
-    els.input.disabled = els.send.disabled = els.next.disabled = true;
+    els.input.disabled = els.send.disabled = els.next.disabled = els.record.disabled = true;
     els.report.style.display = 'inline-block';
     els.stop.disabled = false;
   };
@@ -277,6 +285,50 @@
     if (room) await remove(ref(db, `rooms/${room}`));
     room = partner = null;
     els.messages.innerHTML = '';
+  };
+
+  // Запись голосового (макс 5 сек)
+  els.record.onclick = async () => {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          if (blob.size < 300) return; // слишком коротко
+
+          const path = `voice/\( {room}/ \){Date.now()}.webm`;
+          const storageRef = sRef(storage, path);
+          await uploadBytes(storageRef, blob);
+          const url = await getDownloadURL(storageRef);
+
+          push(ref(db, `rooms/${room}/msgs`), {
+            by: myId,
+            type: 'voice',
+            url,
+            ts: serverTimestamp()
+          });
+
+          els.record.textContent = '🎤';
+        };
+
+        mediaRecorder.start();
+        els.record.textContent = '■';
+
+        setTimeout(() => {
+          if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+        }, 5000);
+      } catch (e) {
+        console.error('Микрофон недоступен', e);
+      }
+    } else {
+      mediaRecorder.stop();
+      els.record.textContent = '🎤';
+    }
   };
 
   els.start.onclick = async () => {
@@ -320,7 +372,7 @@
       ]);
 
       els.status.textContent = 'Собеседник найден!';
-      els.input.disabled = els.send.disabled = false;
+      els.input.disabled = els.send.disabled = els.record.disabled = false;
       els.next.disabled = els.stop.disabled = false;
 
       let left = 300;
@@ -338,7 +390,21 @@
         els.messages.innerHTML = '';
         snap.forEach(c => {
           const msg = c.val();
-          add(msg.t, msg.by === myId);
+          const div = document.createElement('div');
+          div.className = `message ${msg.by === myId ? 'mine' : 'theirs'}`;
+
+          if (msg.type === 'voice') {
+            const audio = document.createElement('audio');
+            audio.controls = true;
+            audio.src = msg.url;
+            audio.style.width = '180px';
+            div.appendChild(audio);
+          } else {
+            div.textContent = msg.t || '';
+          }
+
+          els.messages.appendChild(div);
+          els.messages.scrollTop = els.messages.scrollHeight;
         });
       });
 
@@ -361,7 +427,8 @@
     await cleanup();
     els.status.textContent = 'Поиск нового…';
     setTimer(300);
-    els.input.disabled = els.send.disabled = els.next.disabled = els.report.style.display = 'none';
+    els.input.disabled = els.send.disabled = els.record.disabled = els.next.disabled = true;
+    els.report.style.display = 'none';
     els.start.disabled = false;
     els.start.click();
   };
