@@ -376,7 +376,7 @@
 
   els.report.onclick = async () => {
     if (!partner) return;
-    const until = Date.now() + 10800000; // 3 часа
+    const until = Date.now() + 10800000;
     await set(ref(db, `blocks/${partner}`), until);
     els.status.textContent = 'Жалоба принята · пользователь заблокирован';
     els.report.disabled = true;
