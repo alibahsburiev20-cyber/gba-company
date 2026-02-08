@@ -250,10 +250,17 @@
   const db = getDatabase(app);
   const storage = getStorage(app);
 
-  const myId = localStorage.crId || (localStorage.crId = 'u-'+Math.random().toString(36).slice(2,11));
+  const myId = localStorage.crId || (localStorage.crId = 'u-' + Math.random().toString(36).slice(2, 11));
 
-  let room = null, timer = null, partner = null, mode = 'chat';
-  let mediaRecorder = null, audioChunks = [], currentStream = null, recTimerInterval = null;
+  let room = null;
+  let timerInterval = null;
+  let partner = null;
+  let mode = 'chat';
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let currentStream = null;
+  let recTimerInterval = null;
+  let isRecording = false;
 
   const $ = s => document.getElementById(s);
   const els = {
@@ -273,115 +280,157 @@
     recTimer: $('recTimer')
   };
 
+  // Mode toggle
   document.querySelectorAll('[data-mode]').forEach(el => {
     el.onclick = () => {
-      document.querySelectorAll('[data-mode]').forEach(e=>e.classList.remove('active'));
+      document.querySelectorAll('[data-mode]').forEach(e => e.classList.remove('active'));
       el.classList.add('active');
       mode = el.dataset.mode;
     };
   });
 
-  const add = (text, mine) => {
-    const m = document.createElement('div');
-    m.className = `message ${mine?'mine':'theirs'}`;
-    m.textContent = text;
-    els.messages.appendChild(m);
-    els.messages.scrollTop = els.messages.scrollHeight;
+  const formatTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const setTimer = s => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    els.timer.textContent = `\( {m}: \){sec.toString().padStart(2,'0')}`;
+  const setTimer = (seconds) => {
+    els.timer.textContent = formatTimer(seconds);
   };
 
-  const endChat = reason => {
-    clearInterval(timer);
+  const endChat = (reason) => {
+    clearInterval(timerInterval);
     els.status.textContent = reason || 'Чат завершён';
-    els.input.disabled = els.send.disabled = els.next.disabled = els.record.disabled = true;
+    els.input.disabled = true;
+    els.send.disabled = true;
+    els.next.disabled = true;
+    els.record.disabled = true;
     els.report.style.display = 'inline-block';
     els.stop.disabled = false;
   };
 
   const cleanup = async () => {
-    clearInterval(timer);
-    if (room) await remove(ref(db, `rooms/${room}`));
-    if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+    clearInterval(timerInterval);
+    if (currentStream) {
+      currentStream.getTracks().forEach(track => track.stop());
+      currentStream = null;
+    }
+    if (room) {
+      await remove(ref(db, `rooms/${room}`));
+    }
     room = partner = null;
     els.messages.innerHTML = '';
+    isRecording = false;
   };
 
-  // Голосовое: зажал → запись → отпустил → отправка
-  els.record.onmousedown = els.record.ontouchstart = async e => {
+  // Voice recording: press → record → release → send
+  els.record.onmousedown = els.record.ontouchstart = async (e) => {
     e.preventDefault();
-    if (els.record.disabled) return;
+    if (els.record.disabled || isRecording) return;
 
     try {
-      currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      isRecording = true;
+      currentStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
+
       mediaRecorder = new MediaRecorder(currentStream, { mimeType: 'audio/webm' });
       audioChunks = [];
 
-      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.ondataavailable = (e) => {
+        audioChunks.push(e.data);
+      };
 
       mediaRecorder.onstop = async () => {
         clearInterval(recTimerInterval);
         els.overlay.style.display = 'none';
+        els.record.textContent = '🎤';
+        els.record.style.background = '';
 
         const blob = new Blob(audioChunks, { type: 'audio/webm' });
-        if (blob.size < 300) return;
+        audioChunks = [];
 
-        const path = `voice/\( {room}/ \){Date.now()}.webm`;
-        const storageRef = sRef(storage, path);
-        await uploadBytes(storageRef, blob);
-        const url = await getDownloadURL(storageRef);
+        // Minimum 300ms recording
+        if (blob.size < 300) {
+          currentStream?.getTracks().forEach(t => t.stop());
+          currentStream = null;
+          isRecording = false;
+          return;
+        }
 
-        push(ref(db, `rooms/${room}/msgs`), {
-          by: myId,
-          type: 'voice',
-          url,
-          ts: serverTimestamp()
-        });
+        try {
+          const timestamp = Date.now();
+          const path = `voice/${room}/${timestamp}.webm`;
+          const storageRef = sRef(storage, path);
 
-        currentStream.getTracks().forEach(t => t.stop());
-        currentStream = null;
+          await uploadBytes(storageRef, blob);
+          const url = await getDownloadURL(storageRef);
+
+          await push(ref(db, `rooms/${room}/msgs`), {
+            by: myId,
+            type: 'voice',
+            url,
+            ts: serverTimestamp()
+          });
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          els.status.textContent = 'Ошибка отправки голоса';
+        } finally {
+          currentStream?.getTracks().forEach(t => t.stop());
+          currentStream = null;
+          isRecording = false;
+        }
+      };
+
+      mediaRecorder.onerror = (e) => {
+        console.error('Recording error:', e.error);
+        isRecording = false;
       };
 
       mediaRecorder.start();
       els.record.textContent = '■';
       els.record.style.background = '#ef4444';
 
-      // Оверлей + таймер
+      // Show recording overlay
       els.overlay.style.display = 'flex';
-      let sec = 0;
+      let recSeconds = 0;
       els.recTimer.textContent = '00:00';
+
       recTimerInterval = setInterval(() => {
-        sec++;
-        const m = Math.floor(sec / 60).toString().padStart(2,'0');
-        const s = (sec % 60).toString().padStart(2,'0');
-        els.recTimer.textContent = `\( {m}: \){s}`;
-        if (sec >= 5) mediaRecorder.stop();
+        recSeconds++;
+        els.recTimer.textContent = formatTimer(recSeconds);
+        // Auto stop after 60 seconds
+        if (recSeconds >= 60) {
+          mediaRecorder.stop();
+        }
       }, 1000);
     } catch (err) {
-      console.error('Микрофон ошибка', err);
+      console.error('Microphone error:', err);
+      els.status.textContent = 'Ошибка доступа к микрофону';
+      isRecording = false;
     }
   };
 
   els.record.onmouseup = els.record.ontouchend = () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
-      els.record.textContent = '🎤';
-      els.record.style.background = '';
     }
   };
 
+  // Start chat
   els.start.onclick = async () => {
     if (await isBlocked()) {
       els.status.textContent = 'Вы временно заблокированы';
       return;
     }
 
-    const me   = $('myGender').value;
-    const want = $('wantGender').value;
+    const myGender = $('myGender').value;
+    const wantGender = $('wantGender').value;
 
     els.setup.classList.remove('active');
     els.setup.classList.add('inactive');
@@ -391,118 +440,182 @@
     els.status.textContent = 'Поиск собеседника…';
     els.start.disabled = true;
 
-    await set(ref(db, `queue/${myId}`), { g:me, w:want, m:mode, ts:serverTimestamp() });
+    // Add self to queue
+    await set(ref(db, `queue/${myId}`), {
+      g: myGender,
+      w: wantGender,
+      m: mode,
+      ts: serverTimestamp()
+    });
 
-    onValue(ref(db, 'queue'), async snap => {
+    const unsubscribe = onValue(ref(db, 'queue'), async (snap) => {
       if (room || !snap.exists()) return;
+
       const waiting = snap.val() || {};
-      const possible = Object.entries(waiting)
-        .filter(([id,v])=> id!==myId && !v.blocked &&
-          (v.w==='any'||v.w===me) &&
-          (want==='any'||want===v.g) &&
-          v.m===mode );
+      const possible = Object.entries(waiting).filter(([id, userData]) =>
+        id !== myId &&
+        !userData.blocked &&
+        (userData.w === 'any' || userData.w === myGender) &&
+        (wantGender === 'any' || wantGender === userData.g) &&
+        userData.m === mode
+      );
 
       if (!possible.length) return;
 
-      const [pid] = possible[0];
-      partner = pid;
-      room = [myId, pid].sort().join('·');
+      // Found a match
+      const [partnerId] = possible[0];
+      partner = partnerId;
+      room = [myId, partnerId].sort().join('·');
 
+      unsubscribe();
+
+      // Remove from queue and create room
       await Promise.all([
         remove(ref(db, `queue/${myId}`)),
-        remove(ref(db, `queue/${pid}`)),
-        set(ref(db, `rooms/${room}`), { ts:serverTimestamp(), mode })
+        remove(ref(db, `queue/${partnerId}`)),
+        set(ref(db, `rooms/${room}`), { ts: serverTimestamp(), mode })
       ]);
 
       els.status.textContent = 'Собеседник найден!';
-      els.input.disabled = els.send.disabled = els.record.disabled = false;
-      els.next.disabled = els.stop.disabled = false;
+      els.input.disabled = false;
+      els.send.disabled = false;
+      els.record.disabled = false;
+      els.next.disabled = false;
+      els.stop.disabled = false;
 
-      let left = 300;
-      setTimer(left);
-      timer = setInterval(() => {
-        left--;
-        if (left >= 0) setTimer(left);
-        if (left <= 0) {
-          clearInterval(timer);
+      // Start 5-minute timer
+      let secondsLeft = 300;
+      setTimer(secondsLeft);
+
+      timerInterval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft >= 0) {
+          setTimer(secondsLeft);
+        }
+        if (secondsLeft <= 0) {
+          clearInterval(timerInterval);
           els.next.click();
         }
       }, 1000);
 
-      onValue(ref(db, `rooms/${room}/msgs`), snap => {
+      // Listen for messages
+      const messagesUnsubscribe = onValue(ref(db, `rooms/${room}/msgs`), (snap) => {
         els.messages.innerHTML = '';
-        snap.forEach(c => {
-          const msg = c.val();
-          const div = document.createElement('div');
-          div.className = `message ${msg.by === myId ? 'mine' : 'theirs'}`;
+        if (snap.exists()) {
+          snap.forEach((child) => {
+            const msg = child.val();
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${msg.by === myId ? 'mine' : 'theirs'}`;
 
-          if (msg.type === 'voice') {
-            const audio = document.createElement('audio');
-            audio.controls = true;
-            audio.src = msg.url;
-            audio.style.width = '180px';
-            div.appendChild(audio);
-          } else {
-            div.textContent = msg.t || '';
-          }
+            if (msg.type === 'voice') {
+              const audio = document.createElement('audio');
+              audio.controls = true;
+              audio.src = msg.url;
+              msgDiv.appendChild(audio);
+            } else {
+              msgDiv.textContent = msg.t || '';
+            }
 
-          els.messages.appendChild(div);
-          els.messages.scrollTop = els.messages.scrollHeight;
-        });
+            els.messages.appendChild(msgDiv);
+            els.messages.scrollTop = els.messages.scrollHeight;
+          });
+        }
       });
 
-      onValue(ref(db, `rooms/${room}`), s => {
-        if (!s.exists() && room) endChat('Собеседник вышел');
+      // Check if partner left
+      const roomUnsubscribe = onValue(ref(db, `rooms/${room}`), (snap) => {
+        if (!snap.exists() && room) {
+          endChat('Собеседник в��шел');
+          messagesUnsubscribe();
+          roomUnsubscribe();
+        }
       });
     });
   };
 
+  // Send text message
   els.send.onclick = () => {
-    const t = els.input.value.trim();
-    if (!t || !room) return;
-    push(ref(db, `rooms/${room}/msgs`), { by:myId, t, ts:serverTimestamp() });
+    const text = els.input.value.trim();
+    if (!text || !room) return;
+
+    push(ref(db, `rooms/${room}/msgs`), {
+      by: myId,
+      t: text,
+      ts: serverTimestamp()
+    });
+
     els.input.value = '';
   };
 
-  els.input.onkeypress = e => { if (e.key==='Enter') { e.preventDefault(); els.send.click(); } };
+  els.input.onkeypress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      els.send.click();
+    }
+  };
 
+  // Next chat
   els.next.onclick = async () => {
     await cleanup();
     els.status.textContent = 'Поиск нового…';
     setTimer(300);
-    els.input.disabled = els.send.disabled = els.record.disabled = els.next.disabled = true;
+    els.input.disabled = true;
+    els.send.disabled = true;
+    els.record.disabled = true;
+    els.next.disabled = true;
     els.report.style.display = 'none';
     els.start.disabled = false;
     els.start.click();
   };
 
+  // Stop chat
   els.stop.onclick = async () => {
     await cleanup();
-    els.setup.classList.remove('inactive'); els.setup.classList.add('active');
-    els.chatScreen.classList.remove('active'); els.chatScreen.classList.add('inactive');
+    els.setup.classList.remove('inactive');
+    els.setup.classList.add('active');
+    els.chatScreen.classList.remove('active');
+    els.chatScreen.classList.add('inactive');
     els.status.textContent = 'Сессия завершена';
     els.start.disabled = false;
   };
 
+  // Report user
   els.report.onclick = async () => {
     if (!partner) return;
-    const until = Date.now() + 10800000;
-    await set(ref(db, `blocks/${partner}`), until);
-    els.status.textContent = 'Жалоба принята · пользователь заблокирован';
+    const blockUntil = Date.now() + 10800000; // 3 hours
+    await set(ref(db, `blocks/${partner}`), blockUntil);
+    els.status.textContent = 'Жалоба принята · пользователь заблокирован на 3 часа';
     els.report.disabled = true;
   };
 
+  // Check if blocked
   async function isBlocked() {
-    const snap = await get(ref(db, `blocks/${myId}`));
-    if (!snap.exists()) return false;
-    const ts = snap.val();
-    if (ts > Date.now()) return true;
-    await remove(ref(db, `blocks/${myId}`));
-    return false;
+    try {
+      const snap = await get(ref(db, `blocks/${myId}`));
+      if (!snap.exists()) return false;
+
+      const blockTime = snap.val();
+      if (blockTime > Date.now()) {
+        return true;
+      }
+
+      // Block expired
+      await remove(ref(db, `blocks/${myId}`));
+      return false;
+    } catch (err) {
+      console.error('Block check error:', err);
+      return false;
+    }
   }
 
+  // Cleanup on page unload
   window.onbeforeunload = () => {
-    if (room) remove(ref(db, `rooms/${room}`));
+    if (currentStream) {
+      currentStream.getTracks().forEach(t => t.stop());
+    }
+    if (room) {
+      remove(ref(db, `rooms/${room}`));
+    }
     remove(ref(db, `queue/${myId}`));
   };
 </script>
