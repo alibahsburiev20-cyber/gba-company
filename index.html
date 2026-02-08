@@ -5,129 +5,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Чат-рулетка 5 мин</title>
   <style>
-    :root {
-      --primary: #6366f1;
-      --primary-dark: #4f46e5;
-      --bg: #f8fafc;
-      --card: #ffffff;
-      --text: #1e293b;
-      --gray: #64748b;
-    }
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 20px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .container {
-      background: var(--card);
-      border-radius: 16px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-      padding: 32px;
-      width: 100%;
-      max-width: 480px;
-    }
-    h1 {
-      font-size: 2rem;
-      color: var(--primary);
-      margin-bottom: 16px;
-      text-align: center;
-    }
-    #status {
-      font-size: 1.1rem;
-      font-weight: 600;
-      text-align: center;
-      margin: 16px 0;
-      color: var(--gray);
-      min-height: 1.5em;
-    }
-    #timer {
-      font-size: 2.5rem;
-      font-weight: bold;
-      color: var(--primary);
-      text-align: center;
-      margin: 12px 0;
-      letter-spacing: 2px;
-    }
-    #chat {
-      height: 340px;
-      overflow-y: auto;
-      background: #f1f5f9;
-      border-radius: 12px;
-      padding: 16px;
-      margin: 16px 0;
-      border: 1px solid #e2e8f0;
-    }
-    .msg {
-      margin: 8px 0;
-      padding: 10px 14px;
-      border-radius: 18px;
-      max-width: 80%;
-      word-wrap: break-word;
-    }
-    .mine { 
-      background: var(--primary); 
-      color: white; 
-      margin-left: auto; 
-      border-bottom-right-radius: 4px;
-    }
-    .his { 
-      background: #e2e8f0; 
-      margin-right: auto; 
-      border-bottom-left-radius: 4px;
-    }
-    .input-area {
-      display: flex;
-      gap: 8px;
-      margin-top: 16px;
-    }
-    #input {
-      flex: 1;
-      padding: 14px;
-      border: 1px solid #cbd5e1;
-      border-radius: 12px;
-      font-size: 1rem;
-    }
-    button {
-      padding: 14px 24px;
-      border: none;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    #send, #start, #next, #stop {
-      background: var(--primary);
-      color: white;
-    }
-    button:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-group { display: flex; gap: 12px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+    :root{--primary:#6366f1;--primary-dark:#4f46e5;--bg:#f8fafc;--card:#ffffff;--text:#1e293b;--gray:#64748b;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:var(--text);min-height:100vh;padding:20px;display:flex;justify-content:center;align-items:center;font-family:system-ui,sans-serif;}
+    .container{background:var(--card);border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,0.2);padding:32px;width:100%;max-width:480px;}
+    h1{font-size:2rem;color:var(--primary);margin-bottom:16px;text-align:center;}
+    .setup{margin:20px 0;}
+    select,input{padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:1rem;width:100%;margin:8px 0;}
+    .mode-btns{display:flex;gap:12px;margin:16px 0;}
+    .mode-btn{padding:12px 20px;border:none;border-radius:10px;font-weight:600;cursor:pointer;flex:1;}
+    .mode-btn.active{background:var(--primary);color:white;}
+    .mode-btn:not(.active){background:#e2e8f0;color:var(--text);}
+    #status{font-size:1.1rem;font-weight:600;text-align:center;margin:16px 0;color:var(--gray);min-height:1.5em;}
+    #timer{font-size:2.5rem;font-weight:bold;color:var(--primary);text-align:center;margin:12px 0;}
+    #chat{height:300px;overflow-y:auto;background:#f1f5f9;border-radius:12px;padding:16px;margin:16px 0;border:1px solid #e2e8f0;}
+    .msg{margin:8px 0;padding:10px 14px;border-radius:18px;max-width:80%;word-wrap:break-word;}
+    .mine{background:var(--primary);color:white;margin-left:auto;border-bottom-right-radius:4px;}
+    .his{background:#e2e8f0;margin-right:auto;border-bottom-left-radius:4px;}
+    .input-area{display:flex;gap:8px;margin-top:16px;}
+    #input{flex:1;padding:14px;border:1px solid #cbd5e1;border-radius:12px;font-size:1rem;}
+    button{padding:14px 24px;border:none;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;transition:all 0.2s;background:var(--primary);color:white;}
+    button:hover:not(:disabled){background:var(--primary-dark);transform:translateY(-1px);}
+    button:disabled{opacity:0.5;cursor:not-allowed;}
+    .btn-group{display:flex;gap:12px;justify-content:center;margin-top:20px;flex-wrap:wrap;}
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>Чат-рулетка · 5 минут</h1>
-  <div id="status">Нажми «Начать»</div>
-  <div id="timer">05:00</div>
-  <div id="chat"></div>
+  <h1>Чат-рулетка · 5 мин</h1>
 
-  <div class="input-area">
-    <input id="input" placeholder="Напиши сообщение..." disabled>
-    <button id="send" disabled>→</button>
+  <div class="setup" id="setup">
+    <label>Вы:</label>
+    <select id="myGender">
+      <option value="m">Парень</option>
+      <option value="f">Девушка</option>
+      <option value="o">Другое</option>
+    </select>
+
+    <label>Хочу общаться с:</label>
+    <select id="wantGender">
+      <option value="any">Любой</option>
+      <option value="m">Парень</option>
+      <option value="f">Девушка</option>
+      <option value="o">Другое</option>
+    </select>
+
+    <div class="mode-btns">
+      <button class="mode-btn active" data-mode="normal">Обычный чат</button>
+      <button class="mode-btn" data-mode="roleplay">Ролёвка</button>
+    </div>
+
+    <button id="ready">Готов → войти в очередь</button>
   </div>
 
-  <div class="btn-group">
-    <button id="start">Начать</button>
-    <button id="next" disabled>Следующий</button>
-    <button id="stop" disabled>Завершить</button>
+  <div id="game" style="display:none;">
+    <div id="status">Нажми «Готов»</div>
+    <div id="timer">05:00</div>
+    <div id="chat"></div>
+
+    <div class="input-area">
+      <input id="input" placeholder="Сообщение..." disabled>
+      <button id="send" disabled>→</button>
+    </div>
+
+    <div class="btn-group">
+      <button id="next" disabled>Следующий</button>
+      <button id="stop" disabled>Завершить</button>
+    </div>
   </div>
 </div>
 
@@ -152,12 +97,19 @@
   const myId = localStorage.getItem('crId') || 'u-' + Math.random().toString(36).slice(2,10);
   localStorage.setItem('crId', myId);
 
-  let roomId = null, timerId = null;
+  let roomId = null, timerId = null, mode = 'normal';
 
   const $ = id => document.getElementById(id);
-  const status = $('status'), timerEl = $('timer'), chat = $('chat'),
-        input = $('input'), send = $('send'), start = $('start'),
-        nextBtn = $('next'), stopBtn = $('stop');
+  const setup = $('setup'), game = $('game'), status = $('status'), timerEl = $('timer'), chat = $('chat'),
+        input = $('input'), send = $('send'), ready = $('ready'), nextBtn = $('next'), stopBtn = $('stop');
+
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      mode = btn.dataset.mode;
+    };
+  });
 
   const addMsg = (text, mine) => {
     const div = document.createElement('div');
@@ -181,24 +133,40 @@
     });
   });
 
-  start.onclick = async () => {
-    status.textContent = 'Поиск собеседника...';
-    start.disabled = nextBtn.disabled = stopBtn.disabled = input.disabled = send.disabled = true;
+  ready.onclick = async () => {
+    const myG = $('myGender').value;
+    const wantG = $('wantGender').value;
 
-    await set(ref(db, `waiting/${myId}`), serverTimestamp());
+    setup.style.display = 'none';
+    game.style.display = 'block';
+    status.textContent = 'Поиск собеседника...';
+    ready.disabled = nextBtn.disabled = stopBtn.disabled = input.disabled = send.disabled = true;
+
+    await set(ref(db, `waiting/${myId}`), {
+      gender: myG,
+      want: wantG,
+      mode: mode,
+      t: serverTimestamp()
+    });
 
     onValue(ref(db, 'waiting'), async snap => {
       if (roomId || !snap.exists()) return;
-      const ids = Object.keys(snap.val() || {});
-      if (ids.length < 2 || !ids.includes(myId)) return;
+      const users = snap.val() || {};
+      const candidates = Object.entries(users)
+        .filter(([id, u]) => id !== myId &&
+          (u.want === 'any' || u.want === myG) &&
+          (wantG === 'any' || wantG === u.gender) &&
+          u.mode === mode);
 
-      const p = ids.find(id => id !== myId);
-      roomId = [myId, p].sort().join('_');
+      if (candidates.length < 1) return;
+
+      const [partnerId, partnerData] = candidates[0];
+      roomId = [myId, partnerId].sort().join('_');
 
       await Promise.all([
         remove(ref(db, `waiting/${myId}`)),
-        remove(ref(db, `waiting/${p}`)),
-        set(ref(db, `rooms/${roomId}`), { start: serverTimestamp(), msgs: [] })
+        remove(ref(db, `waiting/${partnerId}`)),
+        set(ref(db, `rooms/${roomId}`), { start: serverTimestamp(), msgs: [], mode })
       ]);
 
       status.textContent = 'Собеседник найден!';
@@ -231,11 +199,11 @@
     if (roomId) await remove(ref(db, `rooms/${roomId}`));
     roomId = null;
     chat.innerHTML = '';
-    status.textContent = 'Поиск нового собеседника...';
+    status.textContent = 'Поиск нового...';
     updateTimer(300);
     input.disabled = send.disabled = nextBtn.disabled = true;
-    start.disabled = false;
-    start.click();
+    ready.disabled = false;
+    ready.click();
   };
 
   stopBtn.onclick = async () => {
@@ -247,7 +215,9 @@
     status.textContent = 'Сессия завершена';
     updateTimer(300);
     input.disabled = send.disabled = nextBtn.disabled = stopBtn.disabled = true;
-    start.disabled = false;
+    setup.style.display = 'block';
+    game.style.display = 'none';
+    ready.disabled = false;
   };
 
   window.onbeforeunload = () => {
