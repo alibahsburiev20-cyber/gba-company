@@ -1,65 +1,209 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Чат-рулетка 5 мин</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Roulette · 5 мин</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root{--primary:#6366f1;--primary-dark:#4f46e5;--bg:#f8fafc;--card:#ffffff;--text:#1e293b;--gray:#64748b;--red:#ef4444;}
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:var(--text);min-height:100vh;font-family:system-ui,sans-serif;}
-    .container{padding:20px;max-width:100%;margin:0 auto;}
-    h1{font-size:1.8rem;color:var(--primary);text-align:center;margin:16px 0;}
-    .setup{padding:24px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.15);max-width:420px;margin:20px auto;}
-    select,input{width:100%;padding:12px;margin:8px 0;border:1px solid #cbd5e1;border-radius:8px;font-size:1rem;}
-    .mode-btns{display:flex;gap:10px;margin:16px 0;}
-    .mode-btn{flex:1;padding:12px;border:none;border-radius:10px;font-weight:600;cursor:pointer;}
-    .mode-btn.active{background:var(--primary);color:white;}
-    .mode-btn:not(.active){background:#e2e8f0;color:var(--text);}
-    #status{font-size:1.2rem;font-weight:600;text-align:center;margin:16px 0;min-height:1.5em;}
-    #timer{font-size:3rem;font-weight:bold;color:var(--primary);text-align:center;margin:8px 0;}
-    #chat{height:calc(100vh - 280px);overflow-y:auto;background:#f1f5f9;border-radius:12px;padding:16px;margin:12px 0;border:1px solid #e2e8f0;}
-    .msg{margin:8px 0;padding:12px 16px;border-radius:20px;max-width:80%;word-wrap:break-word;}
-    .mine{background:var(--primary);color:white;margin-left:auto;border-bottom-right-radius:6px;}
-    .his{background:#e2e8f0;margin-right:auto;border-bottom-left-radius:6px;}
-    .input-area{display:flex;gap:8px;margin:16px 0;}
-    #input{flex:1;padding:14px;border:1px solid #cbd5e1;border-radius:12px;font-size:1.1rem;}
-    button{padding:14px 24px;border:none;border-radius:12px;font-size:1.1rem;font-weight:600;cursor:pointer;transition:all 0.2s;}
-    .btn-primary{background:var(--primary);color:white;}
-    .btn-primary:hover:not(:disabled){background:var(--primary-dark);transform:translateY(-1px);}
-    .btn-danger{background:var(--red);color:white;}
-    button:disabled{opacity:0.5;cursor:not-allowed;}
-    .btn-group{display:flex;gap:12px;justify-content:center;margin:16px 0;flex-wrap:wrap;}
-    #reportBtn{display:none;}
+    :root {
+      --bg: #0f0f17;
+      --surface: #171725;
+      --primary: #7c3aed;
+      --primary-dark: #5b21b6;
+      --accent: #a78bfa;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --red: #f87171;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      overflow: hidden;
+    }
+    #setup, #chat-screen {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      transition: opacity .4s ease, transform .4s ease;
+    }
+    #setup.active, #chat-screen.active { opacity:1; transform:translateY(0); }
+    #setup.inactive, #chat-screen.inactive { opacity:0; transform:translateY(20px); pointer-events:none; }
+
+    .card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      border: 1px solid rgba(124,58,237,0.12);
+    }
+    h1 {
+      font-size: 2.1rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--accent), var(--primary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin: 16px 0 6px;
+    }
+    select, input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      background: #1e1e2e;
+      color: white;
+      font-size: 1rem;
+    }
+    .mode-toggle {
+      display: flex;
+      background: #1e1e2e;
+      border-radius: 12px;
+      padding: 4px;
+      margin: 20px 0;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .mode-btn.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 14px rgba(124,58,237,0.4);
+    }
+    .mode-btn:not(.active) { color: var(--text-muted); }
+
+    #status {
+      font-size: 1.25rem;
+      font-weight: 600;
+      text-align: center;
+      margin: 16px 0;
+      min-height: 1.6em;
+    }
+    #timer {
+      font-size: 4.8rem;
+      font-weight: 800;
+      letter-spacing: -2px;
+      text-align: center;
+      margin: 8px 0 24px;
+      color: var(--accent);
+      text-shadow: 0 0 30px rgba(167,139,250,0.3);
+    }
+    #messages {
+      height: calc(100dvh - 280px);
+      overflow-y: auto;
+      padding: 16px;
+      scrollbar-width: thin;
+    }
+    .message {
+      margin: 10px 0;
+      padding: 12px 16px;
+      border-radius: 18px;
+      max-width: 78%;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+    .mine   { background: var(--primary); color: white; margin-left: auto; border-bottom-right-radius: 6px; }
+    .theirs { background: #2d2d44; margin-right: auto; border-bottom-left-radius: 6px; }
+
+    .bottom-bar {
+      position: sticky;
+      bottom: 0;
+      background: var(--surface);
+      padding: 16px;
+      border-top: 1px solid #2d2d44;
+      display: flex;
+      gap: 12px;
+    }
+    input { flex: 1; }
+    button {
+      padding: 0 24px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s;
+    }
+    .btn-main   { background: var(--primary); color: white; }
+    .btn-main:hover   { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-danger { background: var(--red); color: white; }
+    button:disabled { opacity: 0.45; transform: none; }
+
+    @media (max-height: 680px) {
+      #messages { height: calc(100dvh - 240px); }
+      #timer { font-size: 3.8rem; }
+    }
   </style>
 </head>
 <body>
 
-<div class="container" id="setup">
-  <h1>Чат-рулетка · 5 мин</h1>
-  <label>Вы:</label>
-  <select id="myGender"><option value="m">Парень</option><option value="f">Девушка</option><option value="o">Другое</option></select>
-  <label>Хочу общаться с:</label>
-  <select id="wantGender"><option value="any">Любой</option><option value="m">Парень</option><option value="f">Девушка</option><option value="o">Другое</option></select>
-  <div class="mode-btns">
-    <button class="mode-btn active" data-mode="normal">Обычный</button>
-    <button class="mode-btn" data-mode="roleplay">Ролёвка</button>
+<div id="setup" class="active">
+  <div class="card">
+    <h1>Roulette</h1>
+
+    <label>Я</label>
+    <select id="myGender">
+      <option value="m">Парень</option>
+      <option value="f">Девушка</option>
+      <option value="o">Другое</option>
+    </select>
+
+    <label>Хочу собеседника</label>
+    <select id="wantGender">
+      <option value="any">Любой</option>
+      <option value="m">Парень</option>
+      <option value="f">Девушка</option>
+      <option value="o">Другое</option>
+    </select>
+
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="chat">Обычный</button>
+      <button class="mode-btn" data-mode="rp">Ролевая</button>
+    </div>
+
+    <button id="startBtn" class="btn-main" style="width:100%;padding:16px;font-size:1.1rem;margin-top:20px;">
+      Начать поиск
+    </button>
   </div>
-  <button id="ready" class="btn-primary">Готов → войти</button>
 </div>
 
-<div id="game" style="display:none;">
+<div id="chat-screen" class="inactive">
   <div id="status">Поиск...</div>
   <div id="timer">05:00</div>
-  <div id="chat"></div>
-  <div class="input-area">
-    <input id="input" placeholder="Сообщение..." disabled>
-    <button id="send" class="btn-primary" disabled>→</button>
+
+  <div id="messages"></div>
+
+  <div class="bottom-bar">
+    <input id="msgInput" placeholder="Напиши сообщение…" disabled autocomplete="off"/>
+    <button id="sendBtn" class="btn-main" disabled>Отправить</button>
   </div>
-  <div class="btn-group">
-    <button id="next" class="btn-primary" disabled>Следующий</button>
-    <button id="stop" class="btn-primary" disabled>Завершить</button>
-    <button id="reportBtn" class="btn-danger">Пожаловаться</button>
+
+  <div class="bottom-bar" style="justify-content:center;gap:16px;padding:12px 16px;">
+    <button id="nextBtn" class="btn-main" disabled>Следующий</button>
+    <button id="stopBtn" class="btn-main" disabled>Завершить</button>
+    <button id="reportBtn" class="btn-danger" style="display:none;">Пожаловаться</button>
   </div>
 </div>
 
@@ -67,7 +211,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
   import { getDatabase, ref, push, onValue, remove, set, serverTimestamp, get } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
-  const firebaseConfig = {
+  const config = {
     apiKey: "AIzaSyDWvsB0nsBWxQZLZ9ppIaeH4hZK_6DBeDw",
     authDomain: "chatroullet-80ba8.firebaseapp.com",
     databaseURL: "https://chatroullet-80ba8-default-rtdb.europe-west1.firebasedatabase.app",
@@ -78,180 +222,177 @@
     measurementId: "G-SPB60G3NNQ"
   };
 
-  const app = initializeApp(firebaseConfig);
+  const app = initializeApp(config);
   const db = getDatabase(app);
 
-  const myId = localStorage.getItem('crId') || 'u-' + Math.random().toString(36).slice(2,10);
-  localStorage.setItem('crId', myId);
+  const myId = localStorage.crId || (localStorage.crId = 'u-'+Math.random().toString(36).slice(2,11));
 
-  let roomId = null, timerId = null, mode = 'normal', partnerId = null;
+  let room = null, timer = null, partner = null, mode = 'chat';
 
-  const $ = id => document.getElementById(id);
-  const setup = $('setup'), game = $('game'), status = $('status'), timerEl = $('timer'), chat = $('chat'),
-        input = $('input'), send = $('send'), ready = $('ready'), nextBtn = $('next'), stopBtn = $('stop'),
-        reportBtn = $('reportBtn');
+  const $ = s => document.getElementById(s);
+  const els = {
+    setup: $('setup'),
+    chatScreen: $('chat-screen'),
+    status: $('status'),
+    timer: $('timer'),
+    messages: $('messages'),
+    input: $('msgInput'),
+    send: $('sendBtn'),
+    start: $('startBtn'),
+    next: $('nextBtn'),
+    stop: $('stopBtn'),
+    report: $('reportBtn')
+  };
 
-  document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.onclick = () => {
-      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      mode = btn.dataset.mode;
+  document.querySelectorAll('[data-mode]').forEach(el => {
+    el.onclick = () => {
+      document.querySelectorAll('[data-mode]').forEach(e=>e.classList.remove('active'));
+      el.classList.add('active');
+      mode = el.dataset.mode;
     };
   });
 
-  const addMsg = (text, mine) => {
-    const div = document.createElement('div');
-    div.className = `msg ${mine ? 'mine' : 'his'}`;
-    div.textContent = text;
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
+  const add = (text, mine) => {
+    const m = document.createElement('div');
+    m.className = `message ${mine?'mine':'theirs'}`;
+    m.textContent = text;
+    els.messages.appendChild(m);
+    els.messages.scrollTop = els.messages.scrollHeight;
   };
 
-  const updateTimer = sec => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    timerEl.textContent = `\( {m}: \){s.toString().padStart(2,'0')}`;
+  const setTimer = s => {
+    const m = (s/60)|0;
+    const sec = s%60;
+    els.timer.textContent = `\( {m}: \){sec.toString().padStart(2,0)}`;
   };
 
-  const listenRoom = () => {
-    onValue(ref(db, `rooms/${roomId}/msgs`), snap => {
-      chat.innerHTML = '';
-      snap.forEach(c => {
-        const m = c.val();
-        addMsg(m.text, m.from === myId);
-      });
-    });
-
-    // Детектим удаление комнаты (собеседник ушёл)
-    onValue(ref(db, `rooms/${roomId}`), snap => {
-      if (!snap.exists() && roomId) {
-        endSession('Собеседник завершил чат');
-      }
-    });
+  const endChat = reason => {
+    clearInterval(timer);
+    els.status.textContent = reason || 'Чат завершён';
+    els.input.disabled = els.send.disabled = els.next.disabled = true;
+    els.report.style.display = 'inline-block';
+    els.stop.disabled = false;
   };
 
-  const endSession = (msg = 'Сессия завершена') => {
-    clearInterval(timerId);
-    status.textContent = msg;
-    input.disabled = send.disabled = nextBtn.disabled = true;
-    reportBtn.style.display = 'inline-block';
-    stopBtn.disabled = false;
+  const cleanup = async () => {
+    clearInterval(timer);
+    if (room) await remove(ref(db, `rooms/${room}`));
+    room = partner = null;
+    els.messages.innerHTML = '';
   };
 
-  ready.onclick = async () => {
+  els.start.onclick = async () => {
     if (await isBlocked()) {
-      status.textContent = 'Вы заблокированы на 3 часа';
+      els.status.textContent = 'Вы временно заблокированы';
       return;
     }
 
-    const myG = $('myGender').value;
-    const wantG = $('wantGender').value;
+    const me   = $('myGender').value;
+    const want = $('wantGender').value;
 
-    setup.style.display = 'none';
-    game.style.display = 'block';
-    document.body.style.padding = '0';
-    status.textContent = 'Поиск...';
-    ready.disabled = true;
+    els.setup.classList.remove('active');
+    els.setup.classList.add('inactive');
+    els.chatScreen.classList.remove('inactive');
+    els.chatScreen.classList.add('active');
 
-    await set(ref(db, `waiting/${myId}`), {
-      gender: myG, want: wantG, mode, t: serverTimestamp()
-    });
+    els.status.textContent = 'Поиск собеседника…';
+    els.start.disabled = true;
 
-    onValue(ref(db, 'waiting'), async snap => {
-      if (roomId || !snap.exists()) return;
-      const users = snap.val() || {};
-      const candidates = Object.entries(users)
-        .filter(([id, u]) => id !== myId && !u.blockedUntil &&
-          (u.want === 'any' || u.want === myG) &&
-          (wantG === 'any' || wantG === u.gender) &&
-          u.mode === mode);
+    await set(ref(db, `queue/${myId}`), { g:me, w:want, m:mode, ts:serverTimestamp() });
 
-      if (candidates.length < 1) return;
+    onValue(ref(db, 'queue'), async snap => {
+      if (room || !snap.exists()) return;
+      const waiting = snap.val() || {};
+      const possible = Object.entries(waiting)
+        .filter(([id,v])=> id!==myId && !v.blocked &&
+          (v.w==='any'||v.w===me) &&
+          (want==='any'||want===v.g) &&
+          v.m===mode );
 
-      const [pId] = candidates[0];
-      partnerId = pId;
-      roomId = [myId, pId].sort().join('_');
+      if (!possible.length) return;
+
+      const [pid] = possible[0];
+      partner = pid;
+      room = [myId, pid].sort().join('·');
 
       await Promise.all([
-        remove(ref(db, `waiting/${myId}`)),
-        remove(ref(db, `waiting/${pId}`)),
-        set(ref(db, `rooms/${roomId}`), { start: serverTimestamp(), msgs: [], mode })
+        remove(ref(db, `queue/${myId}`)),
+        remove(ref(db, `queue/${pid}`)),
+        set(ref(db, `rooms/${room}`), { ts:serverTimestamp(), mode })
       ]);
 
-      status.textContent = 'Собеседник найден!';
-      input.disabled = send.disabled = false;
-      nextBtn.disabled = stopBtn.disabled = false;
-      listenRoom();
+      els.status.textContent = 'Собеседник найден!';
+      els.input.disabled = els.send.disabled = false;
+      els.next.disabled = els.stop.disabled = false;
 
-      let sec = 300;
-      updateTimer(sec);
-      timerId = setInterval(() => {
-        sec--;
-        updateTimer(sec);
-        if (sec < 0) {
-          clearInterval(timerId);
-          nextBtn.click();
-        }
+      let left = 300;
+      setTimer(left);
+      timer = setInterval(() => {
+        left--;
+        setTimer(left);
+        if (left < 0) els.next.click();
       }, 1000);
+
+      onValue(ref(db, `rooms/${room}/msgs`), snap => {
+        els.messages.innerHTML = '';
+        snap.forEach(c => {
+          const msg = c.val();
+          add(msg.t, msg.by === myId);
+        });
+      });
+
+      onValue(ref(db, `rooms/${room}`), s => {
+        if (!s.exists() && room) endChat('Собеседник покинул чат');
+      });
     });
   };
 
-  send.onclick = () => {
-    const t = input.value.trim();
-    if (t && roomId) {
-      push(ref(db, `rooms/${roomId}/msgs`), { from: myId, text: t, t: serverTimestamp() });
-      input.value = '';
-    }
+  els.send.onclick = () => {
+    const t = els.input.value.trim();
+    if (!t || !room) return;
+    push(ref(db, `rooms/${room}/msgs`), { by:myId, t, ts:serverTimestamp() });
+    els.input.value = '';
   };
 
-  input.onkeypress = e => e.key === 'Enter' && send.click();
+  els.input.onkeypress = e => e.key==='Enter' && els.send.click();
 
-  nextBtn.onclick = async () => {
+  els.next.onclick = async () => {
     await cleanup();
-    status.textContent = 'Поиск нового...';
-    updateTimer(300);
-    input.disabled = send.disabled = nextBtn.disabled = reportBtn.style.display = 'none';
-    ready.disabled = false;
-    ready.click();
+    els.status.textContent = 'Поиск нового…';
+    setTimer(300);
+    els.input.disabled = els.send.disabled = els.next.disabled = els.report.style.display = 'none';
+    els.start.disabled = false;
+    els.start.click();
   };
 
-  stopBtn.onclick = async () => {
+  els.stop.onclick = async () => {
     await cleanup();
-    setup.style.display = 'block';
-    game.style.display = 'none';
-    document.body.style.padding = '20px';
-    status.textContent = 'Сессия завершена';
-    ready.disabled = false;
+    els.setup.classList.remove('inactive'); els.setup.classList.add('active');
+    els.chatScreen.classList.remove('active'); els.chatScreen.classList.add('inactive');
+    els.status.textContent = 'Сессия завершена';
+    els.start.disabled = false;
   };
 
-  reportBtn.onclick = async () => {
-    if (!partnerId) return;
-    const blockUntil = Date.now() + 3 * 60 * 60 * 1000; // 3 часа
-    await set(ref(db, `blocked/${partnerId}`), blockUntil);
-    status.textContent = 'Жалоба отправлена. Пользователь заблокирован на 3 часа.';
-    reportBtn.disabled = true;
+  els.report.onclick = async () => {
+    if (!partner) return;
+    const until = Date.now() + 10800000; // 3 часа
+    await set(ref(db, `blocks/${partner}`), until);
+    els.status.textContent = 'Жалоба принята · пользователь заблокирован';
+    els.report.disabled = true;
   };
 
   async function isBlocked() {
-    const snap = await get(ref(db, `blocked/${myId}`));
-    if (snap.exists()) {
-      const until = snap.val();
-      if (until > Date.now()) return true;
-      await remove(ref(db, `blocked/${myId}`));
-    }
+    const snap = await get(ref(db, `blocks/${myId}`));
+    if (!snap.exists()) return false;
+    const ts = snap.val();
+    if (ts > Date.now()) return true;
+    await remove(ref(db, `blocks/${myId}`));
     return false;
   }
 
-  async function cleanup() {
-    clearInterval(timerId);
-    if (roomId) await remove(ref(db, `rooms/${roomId}`));
-    roomId = partnerId = null;
-    chat.innerHTML = '';
-  }
-
   window.onbeforeunload = () => {
-    cleanup();
-    remove(ref(db, `waiting/${myId}`));
+    if (room) remove(ref(db, `rooms/${room}`));
+    remove(ref(db, `queue/${myId}`));
   };
 </script>
 </body>
