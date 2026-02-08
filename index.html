@@ -152,6 +152,21 @@
 
     audio { width: 180px; margin: 4px 0; }
 
+    #recordingOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      color: white;
+      font-size: 2rem;
+      text-align: center;
+    }
+    #recTimer { font-size: 4rem; margin: 20px 0; }
+
     @media (max-width: 480px) {
       .card { padding: 24px 16px; border-radius: 16px; }
       .bottom-bar { padding: 10px 12px; gap: 6px; }
@@ -209,6 +224,12 @@
   </div>
 </div>
 
+<div id="recordingOverlay">
+  <div>Запись...</div>
+  <div id="recTimer">00:00</div>
+  <div>Отпустите для отправки</div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
   import { getDatabase, ref, push, onValue, remove, set, serverTimestamp, get } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
@@ -232,7 +253,7 @@
   const myId = localStorage.crId || (localStorage.crId = 'u-'+Math.random().toString(36).slice(2,11));
 
   let room = null, timer = null, partner = null, mode = 'chat';
-  let mediaRecorder = null, audioChunks = [], currentStream = null;
+  let mediaRecorder = null, audioChunks = [], currentStream = null, recTimerInterval = null;
 
   const $ = s => document.getElementById(s);
   const els = {
@@ -247,7 +268,9 @@
     next: $('nextBtn'),
     stop: $('stopBtn'),
     report: $('reportBtn'),
-    record: $('recordBtn')
+    record: $('recordBtn'),
+    overlay: $('recordingOverlay'),
+    recTimer: $('recTimer')
   };
 
   document.querySelectorAll('[data-mode]').forEach(el => {
@@ -288,7 +311,7 @@
     els.messages.innerHTML = '';
   };
 
-  // Голосовое как в Telegram — зажал/отпустил
+  // Голосовое: зажал → запись → отпустил → отправка
   els.record.onmousedown = els.record.ontouchstart = async e => {
     e.preventDefault();
     if (els.record.disabled) return;
@@ -301,6 +324,9 @@
       mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
 
       mediaRecorder.onstop = async () => {
+        clearInterval(recTimerInterval);
+        els.overlay.style.display = 'none';
+
         const blob = new Blob(audioChunks, { type: 'audio/webm' });
         if (blob.size < 300) return;
 
@@ -323,8 +349,20 @@
       mediaRecorder.start();
       els.record.textContent = '■';
       els.record.style.background = '#ef4444';
+
+      // Оверлей + таймер
+      els.overlay.style.display = 'flex';
+      let sec = 0;
+      els.recTimer.textContent = '00:00';
+      recTimerInterval = setInterval(() => {
+        sec++;
+        const m = Math.floor(sec / 60).toString().padStart(2,'0');
+        const s = (sec % 60).toString().padStart(2,'0');
+        els.recTimer.textContent = `\( {m}: \){s}`;
+        if (sec >= 5) mediaRecorder.stop();
+      }, 1000);
     } catch (err) {
-      console.error('Микрофон недоступен', err);
+      console.error('Микрофон ошибка', err);
     }
   };
 
@@ -335,16 +373,6 @@
       els.record.style.background = '';
     }
   };
-
-  // Автостоп 5 сек
-  const autoStop = () => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-      els.record.textContent = '🎤';
-      els.record.style.background = '';
-    }
-  };
-  setInterval(autoStop, 5000); // проверка каждые 5 сек
 
   els.start.onclick = async () => {
     if (await isBlocked()) {
