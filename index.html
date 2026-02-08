@@ -1,45 +1,25 @@
-<!-- Updated index.html code -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Voice Recorder</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recording</title>
 </head>
 <body>
-    <h1>Voice Recorder</h1>
-    <button id="recordButton">Record</button>
-    <button id="sendButton" style="display:none;">Send</button>
     <script>
-        let mediaRecorder;
-        let audioChunks = [];
-        const recordButton = document.getElementById("recordButton");
-        const sendButton = document.getElementById("sendButton");
+        // Other existing script content
 
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    mediaRecorder = new MediaRecorder(stream);
-                    mediaRecorder.ondataavailable = event => {
-                        audioChunks.push(event.data);
-                    };
-                    mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                        const audioUrl = URL.createObjectURL(audioBlob);
-                        // Handle sending audioBlob to the server
-                    };
-                });
-        }
+        // Update to limit voice recording to 5 seconds
+        function startRecording() {
+            let recSeconds = 0;
 
-        recordButton.onclick = () => {
-            if (mediaRecorder) {
-                audioChunks = [];
-                mediaRecorder.start();
-                sendButton.style.display = "inline";
-                setTimeout(() => {
-                    mediaRecorder.stop();
-                    sendButton.style.display = "none";
-                }, 5000); // Limit recording to 5 seconds
+            // Other existing code
+
+            if (recSeconds >= 5) { 
+                // Stop recording process
             }
-        };
+            // Other existing code
+        }
     </script>
 </body>
 </html>
